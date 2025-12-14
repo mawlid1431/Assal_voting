@@ -1,7 +1,8 @@
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { X, GripVertical, CheckCircle, User, Phone, Mail } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, CheckCircle, User, Phone, Mail, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { VotingPosition } from '../src/lib/supabase';
+import { votersAPI, rankingsAPI } from '../src/lib/api';
 
 interface RankingModalProps {
     isOpen: boolean;
@@ -9,18 +10,37 @@ interface RankingModalProps {
     positions: VotingPosition[];
 }
 
+interface PositionSlot {
+    id: string;
+    title: string;
+    candidates: (VotingPosition & { rating: number })[];
+    color: string;
+}
+
+interface DraggedCandidate extends VotingPosition {
+    rating: number;
+}
+
 export function RankingModal({ isOpen, onClose, positions }: RankingModalProps) {
     const [step, setStep] = useState(1);
-    const [rankedPositions, setRankedPositions] = useState<VotingPosition[]>([]);
     const [formData, setFormData] = useState({
         fullName: '',
         phoneNumber: '',
         email: '',
     });
 
+    const [positionSlots, setPositionSlots] = useState<PositionSlot[]>([
+        { id: 'president', title: 'President', candidates: [], color: 'from-red-600 to-red-700' },
+        { id: 'vice_president', title: 'Vice President', candidates: [], color: 'from-green-600 to-green-700' },
+        { id: 'treasurer', title: 'Treasurer', candidates: [], color: 'from-red-600 to-green-600' },
+    ]);
+
+    const [availableCandidates, setAvailableCandidates] = useState<DraggedCandidate[]>([]);
+    const [draggedCandidate, setDraggedCandidate] = useState<DraggedCandidate | null>(null);
+
     useEffect(() => {
         if (positions.length > 0) {
-            setRankedPositions([...positions]);
+            setAvailableCandidates(positions.map(p => ({ ...p, rating: 5 })));
         }
     }, [positions]);
 
@@ -29,6 +49,71 @@ export function RankingModal({ isOpen, onClose, positions }: RankingModalProps) 
             ...formData,
             [e.target.name]: e.target.value,
         });
+    };
+
+    const handleDragStart = (candidate: DraggedCandidate) => {
+        setDraggedCandidate(candidate);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const handleDropOnSlot = (slotId: string) => {
+        if (!draggedCandidate) return;
+
+        // Remove from available candidates
+        setAvailableCandidates(prev => prev.filter(c => c.id !== draggedCandidate.id));
+
+        // Remove from other slots if already placed
+        setPositionSlots(prev => prev.map(slot => ({
+            ...slot,
+            candidates: slot.candidates.filter(c => c.id !== draggedCandidate.id)
+        })));
+
+        // Add to target slot
+        setPositionSlots(prev => prev.map(slot => {
+            if (slot.id === slotId) {
+                return {
+                    ...slot,
+                    candidates: [...slot.candidates, draggedCandidate]
+                };
+            }
+            return slot;
+        }));
+
+        setDraggedCandidate(null);
+    };
+
+    const handleDropBackToAvailable = () => {
+        if (!draggedCandidate) return;
+
+        // Remove from all slots
+        setPositionSlots(prev => prev.map(slot => ({
+            ...slot,
+            candidates: slot.candidates.filter(c => c.id !== draggedCandidate.id)
+        })));
+
+        // Add back to available if not already there
+        if (!availableCandidates.find(c => c.id === draggedCandidate.id)) {
+            setAvailableCandidates(prev => [...prev, draggedCandidate]);
+        }
+
+        setDraggedCandidate(null);
+    };
+
+    const handleRatingChange = (slotId: string, candidateId: string, rating: number) => {
+        setPositionSlots(prev => prev.map(slot => {
+            if (slot.id === slotId) {
+                return {
+                    ...slot,
+                    candidates: slot.candidates.map(c =>
+                        c.id === candidateId ? { ...c, rating } : c
+                    )
+                };
+            }
+            return slot;
+        }));
     };
 
     const handleNext = () => {
@@ -40,14 +125,22 @@ export function RankingModal({ isOpen, onClose, positions }: RankingModalProps) 
     };
 
     const handleSubmit = () => {
+        const rankings = positionSlots.flatMap(slot =>
+            slot.candidates.map((candidate, index) => ({
+                position: slot.id,
+                positionTitle: slot.title,
+                rank: index + 1,
+                candidateId: candidate.id,
+                candidateName: candidate.name,
+                rating: candidate.rating
+            }))
+        );
+
         console.log('Vote submitted:', {
             voter: formData,
-            rankings: rankedPositions.map((pos, index) => ({
-                rank: index + 1,
-                position: pos.role,
-                candidate: pos.name,
-            })),
+            rankings
         });
+
         setStep(4);
         setTimeout(() => {
             handleClose();
@@ -61,24 +154,17 @@ export function RankingModal({ isOpen, onClose, positions }: RankingModalProps) 
             phoneNumber: '',
             email: '',
         });
-        setRankedPositions([...positions]);
+        setPositionSlots([
+            { id: 'president', title: 'President', candidates: [], color: 'from-red-600 to-red-700' },
+            { id: 'vice_president', title: 'Vice President', candidates: [], color: 'from-green-600 to-green-700' },
+            { id: 'treasurer', title: 'Treasurer', candidates: [], color: 'from-red-600 to-green-600' },
+        ]);
+        setAvailableCandidates(positions.map(p => ({ ...p, rating: 5 })));
         onClose();
     };
 
     const isStep1Valid = formData.fullName && formData.phoneNumber && formData.email;
-
-    const getColorByRole = (role: string) => {
-        const roleLower = role.toLowerCase();
-        if (roleLower.includes('president') && !roleLower.includes('vice')) {
-            return 'bg-red-600';
-        } else if (roleLower.includes('vice')) {
-            return 'bg-green-600';
-        } else if (roleLower.includes('treasurer')) {
-            return 'bg-gradient-to-r from-red-600 to-green-600';
-        } else {
-            return 'bg-red-600';
-        }
-    };
+    const hasAnyRankings = positionSlots.some(slot => slot.candidates.length > 0);
 
     return (
         <AnimatePresence>
@@ -185,68 +271,128 @@ export function RankingModal({ isOpen, onClose, positions }: RankingModalProps) 
                                     className="space-y-4"
                                 >
                                     <div className="mb-4">
-                                        <h3 className="text-xl text-black mb-2">Organize Your Preferences</h3>
+                                        <h3 className="text-xl text-black mb-2">Drag Candidates to Positions</h3>
                                         <p className="text-sm text-gray-600">
-                                            Drag and drop to rank candidates by priority. Top = Most preferred
+                                            Drag candidates into position slots and rate them out of 10
                                         </p>
                                     </div>
 
-                                    <Reorder.Group
-                                        axis="y"
-                                        values={rankedPositions}
-                                        onReorder={setRankedPositions}
-                                        className="space-y-3"
-                                    >
-                                        {rankedPositions.map((position, index) => (
-                                            <Reorder.Item
-                                                key={position.id}
-                                                value={position}
-                                                className="cursor-grab active:cursor-grabbing"
-                                            >
-                                                <motion.div
-                                                    layout
-                                                    className="bg-white border-2 border-gray-300 rounded-lg p-4 hover:border-green-600 transition-colors shadow-sm hover:shadow-md"
+                                    {/* Position Slots */}
+                                    <div className="space-y-4">
+                                        {positionSlots.map(slot => (
+                                            <div key={slot.id} className="border-2 border-gray-300 rounded-lg p-4 bg-gray-50">
+                                                <div className={`bg-gradient-to-r ${slot.color} text-white px-3 py-2 rounded-lg mb-3 text-center font-semibold`}>
+                                                    {slot.title}
+                                                </div>
+
+                                                <div
+                                                    onDragOver={handleDragOver}
+                                                    onDrop={() => handleDropOnSlot(slot.id)}
+                                                    className={`min-h-[120px] border-2 border-dashed rounded-lg p-3 transition-colors ${slot.candidates.length === 0
+                                                        ? 'border-gray-300 bg-white'
+                                                        : 'border-green-400 bg-green-50'
+                                                        }`}
                                                 >
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="flex-shrink-0">
-                                                            <GripVertical className="text-gray-400" size={24} />
+                                                    {slot.candidates.length === 0 ? (
+                                                        <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                                                            Drop candidate here
                                                         </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {slot.candidates.map((candidate, index) => (
+                                                                <div
+                                                                    key={candidate.id}
+                                                                    draggable
+                                                                    onDragStart={() => handleDragStart(candidate)}
+                                                                    className="bg-white border-2 border-gray-300 rounded-lg p-3 cursor-move hover:border-green-500 transition-colors"
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-100 to-green-100 flex items-center justify-center text-sm font-bold text-gray-700">
+                                                                            {index + 1}
+                                                                        </div>
 
-                                                        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-red-100 to-green-100 flex items-center justify-center text-lg font-bold text-gray-700">
-                                                            {index + 1}
+                                                                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200">
+                                                                            <img
+                                                                                src={candidate.image_url || 'https://via.placeholder.com/100'}
+                                                                                alt={candidate.name}
+                                                                                className="w-full h-full object-cover"
+                                                                            />
+                                                                        </div>
+
+                                                                        <div className="flex-1">
+                                                                            <h4 className="text-sm font-semibold text-black">{candidate.name}</h4>
+                                                                            <p className="text-xs text-gray-600">{candidate.role}</p>
+                                                                        </div>
+
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Star className="text-yellow-500" size={16} />
+                                                                            <input
+                                                                                type="number"
+                                                                                min="0"
+                                                                                max="10"
+                                                                                step="0.5"
+                                                                                value={candidate.rating}
+                                                                                onChange={(e) => handleRatingChange(slot.id, candidate.id, parseFloat(e.target.value))}
+                                                                                className="w-16 px-2 py-1 border-2 border-gray-300 rounded text-center text-sm focus:border-green-600 focus:outline-none"
+                                                                            />
+                                                                            <span className="text-xs text-gray-600">/10</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
                                                         </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
 
-                                                        <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gray-200">
-                                                            <img
-                                                                src={position.image_url || 'https://via.placeholder.com/100'}
-                                                                alt={position.name}
-                                                                className="w-full h-full object-cover"
-                                                            />
-                                                        </div>
-
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="text-base font-semibold text-black truncate">
-                                                                {position.name}
-                                                            </h4>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className={`${getColorByRole(position.role)} text-white text-xs px-2 py-1 rounded`}>
-                                                                    {position.role}
-                                                                </span>
+                                    {/* Available Candidates */}
+                                    <div className="border-2 border-blue-300 rounded-lg p-4 bg-blue-50">
+                                        <h4 className="text-sm font-semibold text-blue-900 mb-3">Available Candidates</h4>
+                                        <div
+                                            onDragOver={handleDragOver}
+                                            onDrop={handleDropBackToAvailable}
+                                            className="grid grid-cols-2 gap-2 min-h-[80px]"
+                                        >
+                                            {availableCandidates.length === 0 ? (
+                                                <div className="col-span-2 flex items-center justify-center text-gray-400 text-sm py-4">
+                                                    All candidates assigned
+                                                </div>
+                                            ) : (
+                                                availableCandidates.map(candidate => (
+                                                    <div
+                                                        key={candidate.id}
+                                                        draggable
+                                                        onDragStart={() => handleDragStart(candidate)}
+                                                        className="bg-white border-2 border-gray-300 rounded-lg p-2 cursor-move hover:border-blue-500 transition-colors"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-200">
+                                                                <img
+                                                                    src={candidate.image_url || 'https://via.placeholder.com/100'}
+                                                                    alt={candidate.name}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h5 className="text-xs font-semibold text-black truncate">{candidate.name}</h5>
+                                                                <p className="text-xs text-gray-600 truncate">{candidate.role}</p>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </motion.div>
-                                            </Reorder.Item>
-                                        ))}
-                                    </Reorder.Group>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
 
-                                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mt-6">
+                                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
                                         <p className="text-sm text-blue-800">
-                                            💡 <strong>Tip:</strong> Click and drag any card to reorder your preferences
+                                            💡 <strong>Tip:</strong> Drag candidates to position slots, rate them, and drag back to remove
                                         </p>
                                     </div>
 
-                                    <div className="flex gap-3 mt-6">
+                                    <div className="flex gap-3">
                                         <button
                                             onClick={() => setStep(1)}
                                             className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-all"
@@ -255,7 +401,8 @@ export function RankingModal({ isOpen, onClose, positions }: RankingModalProps) 
                                         </button>
                                         <button
                                             onClick={handleNext}
-                                            className="flex-1 bg-gradient-to-r from-red-600 to-green-600 text-white py-3 rounded-lg hover:from-red-700 hover:to-green-700 transition-all"
+                                            disabled={!hasAnyRankings}
+                                            className="flex-1 bg-gradient-to-r from-red-600 to-green-600 text-white py-3 rounded-lg hover:from-red-700 hover:to-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             Next: Review
                                         </button>
@@ -270,9 +417,9 @@ export function RankingModal({ isOpen, onClose, positions }: RankingModalProps) 
                                     exit={{ opacity: 0, x: -20 }}
                                     className="space-y-4"
                                 >
-                                    <h3 className="text-xl mb-4 text-black">Confirm Your Rankings</h3>
+                                    <h3 className="text-xl mb-4 text-black">Confirm Your Rankings & Ratings</h3>
 
-                                    <div className="bg-gradient-to-br from-red-50 to-green-50 border-2 border-green-600 rounded-lg p-6 space-y-3">
+                                    <div className="bg-gradient-to-br from-red-50 to-green-50 border-2 border-green-600 rounded-lg p-6 space-y-4">
                                         <div>
                                             <p className="text-sm text-gray-600">Voter</p>
                                             <p className="text-black font-semibold">{formData.fullName}</p>
@@ -281,18 +428,40 @@ export function RankingModal({ isOpen, onClose, positions }: RankingModalProps) 
                                         </div>
 
                                         <div className="pt-3 border-t-2 border-green-200">
-                                            <p className="text-sm text-gray-600 mb-3">Your Rankings</p>
-                                            <div className="space-y-2">
-                                                {rankedPositions.map((position, index) => (
-                                                    <div key={position.id} className="flex items-center gap-3 bg-white p-3 rounded-lg">
-                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-600 to-green-600 flex items-center justify-center text-white font-bold text-sm">
-                                                            {index + 1}
+                                            <p className="text-sm text-gray-600 mb-3 font-semibold">Your Position Assignments</p>
+                                            <div className="space-y-3">
+                                                {positionSlots.map(slot => (
+                                                    slot.candidates.length > 0 && (
+                                                        <div key={slot.id} className="bg-white p-3 rounded-lg border-2 border-gray-200">
+                                                            <div className={`bg-gradient-to-r ${slot.color} text-white px-2 py-1 rounded text-xs font-semibold mb-2 inline-block`}>
+                                                                {slot.title}
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                {slot.candidates.map((candidate, index) => (
+                                                                    <div key={candidate.id} className="flex items-center gap-3 bg-gray-50 p-2 rounded">
+                                                                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-red-600 to-green-600 flex items-center justify-center text-white font-bold text-xs">
+                                                                            {index + 1}
+                                                                        </div>
+                                                                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-200">
+                                                                            <img
+                                                                                src={candidate.image_url || 'https://via.placeholder.com/100'}
+                                                                                alt={candidate.name}
+                                                                                className="w-full h-full object-cover"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="flex-1">
+                                                                            <p className="text-black font-medium text-sm">{candidate.name}</p>
+                                                                            <p className="text-xs text-gray-600">{candidate.role}</p>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded">
+                                                                            <Star className="text-yellow-600" size={14} />
+                                                                            <span className="text-sm font-bold text-yellow-700">{candidate.rating}/10</span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                        <div className="flex-1">
-                                                            <p className="text-black font-medium">{position.name}</p>
-                                                            <p className="text-xs text-gray-600">{position.role}</p>
-                                                        </div>
-                                                    </div>
+                                                    )
                                                 ))}
                                             </div>
                                         </div>
@@ -300,7 +469,7 @@ export function RankingModal({ isOpen, onClose, positions }: RankingModalProps) 
 
                                     <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
                                         <p className="text-sm text-red-800">
-                                            <strong>⚠️ Are you sure?</strong> Once submitted, your rankings cannot be changed.
+                                            <strong>⚠️ Are you sure?</strong> Once submitted, your rankings and ratings cannot be changed.
                                         </p>
                                     </div>
 

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Vote } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { RankingModal } from './RankingModal';
+import { SimpleVotingModal } from './SimpleVotingModal';
 import { votingPositionsAPI } from '../src/lib/api';
 import type { VotingPosition } from '../src/lib/supabase';
 
@@ -109,7 +109,7 @@ export function VotingPositions() {
           })}
         </div>
       </div>
-      <RankingModal
+      <SimpleVotingModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         positions={positions}

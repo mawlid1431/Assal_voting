@@ -4,12 +4,15 @@ import { Plus, Edit, Trash2, Upload, Save, X, Users, Award, LogOut } from 'lucid
 import { votingPositionsAPI, leadershipAPI, uploadImage } from '../lib/api';
 import type { VotingPosition, Leadership } from '../lib/supabase';
 import { ThemeToggle } from '../../components/ThemeToggle';
+import { supabase } from '../lib/supabase';
 
 export function AdminPanel() {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'candidates' | 'leadership'>('candidates');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+    const [userEmail, setUserEmail] = useState<string>('');
 
     const [candidates, setCandidates] = useState<VotingPosition[]>([]);
     const [leaders, setLeaders] = useState<Leadership[]>([]);
@@ -18,8 +21,37 @@ export function AdminPanel() {
     const [imageFile, setImageFile] = useState<File | null>(null);
 
     useEffect(() => {
-        loadData();
+        checkAuth();
     }, []);
+
+    const checkAuth = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (!user) {
+                // Not logged in, redirect to login
+                navigate('/admin/login');
+                return;
+            }
+
+            setUserEmail(user.email || '');
+            setIsCheckingAuth(false);
+            loadData();
+        } catch (error) {
+            console.error('Auth check error:', error);
+            navigate('/admin/login');
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await supabase.auth.signOut();
+            navigate('/admin/login');
+        } catch (error) {
+            console.error('Logout error:', error);
+            alert('Failed to logout. Please try again.');
+        }
+    };
 
     const loadData = async () => {
         try {
@@ -266,6 +298,17 @@ export function AdminPanel() {
         setEditingId(null);
     };
 
+    if (isCheckingAuth) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-red-50">
+                <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-xl text-gray-700">Checking authentication...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-red-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors">
             <ThemeToggle />
@@ -283,13 +326,18 @@ export function AdminPanel() {
                         >
                             Back to Website
                         </button>
-                        <button
-                            onClick={() => navigate('/')}
-                            className="flex items-center gap-2 bg-red-700 text-white px-6 py-2 rounded-lg hover:bg-red-800 transition-colors"
-                        >
-                            <LogOut size={18} />
-                            Logout
-                        </button>
+                        <div className="flex items-center gap-4">
+                            <span className="text-white/90 text-sm">
+                                {userEmail}
+                            </span>
+                            <button
+                                onClick={handleLogout}
+                                className="flex items-center gap-2 bg-red-700 text-white px-6 py-2 rounded-lg hover:bg-red-800 transition-colors"
+                            >
+                                <LogOut size={18} />
+                                Logout
+                            </button>
+                        </div>
 
                     </div>
                 </div>

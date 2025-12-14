@@ -1,9 +1,29 @@
 import { motion } from 'framer-motion';
 import { Vote, Users } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { SimpleVotingModal } from './SimpleVotingModal';
+import { votingPositionsAPI } from '../src/lib/api';
+import type { VotingPosition } from '../src/lib/supabase';
 
 const logoImage = '/logos/main_logo.png';
 
 export function Hero() {
+  const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
+  const [positions, setPositions] = useState<VotingPosition[]>([]);
+
+  useEffect(() => {
+    loadPositions();
+  }, []);
+
+  const loadPositions = async () => {
+    try {
+      const data = await votingPositionsAPI.getAll();
+      setPositions(data);
+    } catch (error) {
+      console.error('Error loading voting positions:', error);
+    }
+  };
+
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -56,21 +76,27 @@ export function Hero() {
           className="flex flex-col sm:flex-row gap-4 justify-center items-center"
         >
           <button
+            onClick={() => setIsVotingModalOpen(true)}
+            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-4 sm:px-10 sm:py-5 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg flex items-center gap-2 w-full sm:w-auto justify-center text-lg font-semibold"
+          >
+            <Vote size={28} />
+            Vote Now
+          </button>
+          <button
             onClick={() => scrollToSection('candidates')}
             className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg flex items-center gap-2 w-full sm:w-auto justify-center"
           >
             <Users size={24} />
             View Candidates
           </button>
-          <button
-            onClick={() => scrollToSection('live-voting')}
-            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg transition-all duration-300 hover:scale-105 shadow-lg flex items-center gap-2 w-full sm:w-auto justify-center"
-          >
-            <Vote size={24} />
-            Live Voting
-          </button>
         </motion.div>
       </div>
+
+      <SimpleVotingModal
+        isOpen={isVotingModalOpen}
+        onClose={() => setIsVotingModalOpen(false)}
+        positions={positions}
+      />
     </section>
   );
 }
