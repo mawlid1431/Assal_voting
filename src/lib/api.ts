@@ -128,7 +128,35 @@ export const votersAPI = {
     },
 
     async checkIfAlreadyVoted(email: string, phoneNumber: string) {
-        // Check if voter exists with this email or phone number
+        // FIRST: Check voting history (permanent record, even if deleted)
+        const { data: historyData, error: historyError } = await supabase
+            .from('voting_history')
+            .select('*')
+            .or(`email.eq.${email},phone_number.eq.${phoneNumber}`)
+            .maybeSingle()
+
+        if (historyError && historyError.code !== 'PGRST116') {
+            // Ignore "no rows" error, throw others
+            console.error('Error checking voting history:', historyError)
+        }
+
+        // If found in history, they already voted (even if deleted by admin)
+        if (historyData) {
+            const wasDeleted = historyData.deleted_at ? ' (deleted by admin)' : ''
+            return {
+                hasVoted: true,
+                voter: {
+                    id: historyData.original_voter_id || historyData.id,
+                    full_name: historyData.full_name,
+                    email: historyData.email,
+                    phone_number: historyData.phone_number
+                },
+                voteDate: historyData.voted_at,
+                message: `You already voted on ${new Date(historyData.voted_at).toLocaleString()}${wasDeleted}. Don't cheat on us! 😊`
+            }
+        }
+
+        // SECOND: Check current voters table
         const { data, error } = await supabase
             .from('voters')
             .select(`
@@ -151,11 +179,12 @@ export const votersAPI = {
             return {
                 hasVoted: true,
                 voter: data,
-                voteDate: data.candidate_rankings[0].created_at
+                voteDate: data.candidate_rankings[0].created_at,
+                message: `You already voted on ${new Date(data.candidate_rankings[0].created_at).toLocaleString()}. Don't cheat on us! 😊`
             }
         }
 
-        return { hasVoted: false, voter: null, voteDate: null }
+        return { hasVoted: false, voter: null, voteDate: null, message: null }
     }
 }
 

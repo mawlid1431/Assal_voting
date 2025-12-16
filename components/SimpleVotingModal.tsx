@@ -95,14 +95,14 @@ export function SimpleVotingModal({ isOpen, onClose, positions }: SimpleVotingMo
                         existing_voter_id: voteCheck.voter.id
                     });
 
+                    // Show friendly message
                     alert(
-                        `⚠️ Already Voted!\n\n` +
-                        `This email or phone number has already been used to vote.\n\n` +
+                        `😊 Hey there!\n\n` +
+                        `${voteCheck.message || `You already voted on ${voteDate}. Don't cheat on us! 😊`}\n\n` +
                         `Name: ${voteCheck.voter.full_name}\n` +
                         `Email: ${voteCheck.voter.email}\n` +
-                        `Phone: ${voteCheck.voter.phone_number}\n` +
-                        `Vote Date: ${voteDate}\n\n` +
-                        `Each person can only vote once to ensure fair elections.`
+                        `Phone: ${voteCheck.voter.phone_number}\n\n` +
+                        `Each person can only vote once to ensure fair elections. Thank you for your participation! 🗳️`
                     );
                     return;
                 }

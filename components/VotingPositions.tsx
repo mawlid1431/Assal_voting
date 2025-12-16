@@ -33,6 +33,8 @@ export function VotingPositions() {
       return { color: 'from-green-600 to-green-700', borderColor: 'border-green-600' };
     } else if (roleLower.includes('treasurer')) {
       return { color: 'from-red-600 to-green-600', borderColor: 'border-black' };
+    } else if (roleLower.includes('secretary')) {
+      return { color: 'from-blue-600 to-blue-700', borderColor: 'border-blue-600' };
     } else {
       return { color: 'from-red-600 to-red-700', borderColor: 'border-red-600' };
     }
@@ -52,9 +54,55 @@ export function VotingPositions() {
     setIsModalOpen(true);
   };
 
+  // Separate candidates by position
+  const presidents = positions.filter(p => p.role.toLowerCase().includes('president') && !p.role.toLowerCase().includes('vice'));
+  const vicePresidents = positions.filter(p => p.role.toLowerCase().includes('vice'));
+  const treasurers = positions.filter(p => p.role.toLowerCase().includes('treasurer'));
+  const secretaries = positions.filter(p => p.role.toLowerCase().includes('secretary'));
+
+  const renderCandidateCard = (candidate: VotingPosition, index: number) => {
+    const { color, borderColor } = getColorByRole(candidate.role);
+    return (
+      <motion.div
+        key={candidate.id}
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6, delay: index * 0.1 }}
+        className={`bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border-2 ${borderColor}`}
+      >
+        <div className="aspect-[3/4] overflow-hidden bg-gray-200">
+          <img
+            src={candidate.image_url || 'https://via.placeholder.com/400'}
+            alt={candidate.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        <div className={`bg-gradient-to-r ${color} p-2 text-center`}>
+          <p className="text-white text-sm">{candidate.role}</p>
+        </div>
+
+        <div className="p-3 text-center">
+          <h3 className="text-base mb-3 text-black">{candidate.name}</h3>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleVoteClick}
+            className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2 mx-auto text-sm"
+          >
+            <Vote size={16} />
+            Vote
+          </motion.button>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <section id="candidates" className="py-20 px-4 bg-gradient-to-br from-green-50 to-red-50">
       <div className="max-w-6xl mx-auto">
+        {/* Main Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -68,46 +116,77 @@ export function VotingPositions() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {positions.map((candidate, index) => {
-            const { color, borderColor } = getColorByRole(candidate.role);
-            return (
-              <motion.div
-                key={candidate.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-                className={`bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border-2 ${borderColor}`}
-              >
-                <div className="aspect-[3/4] overflow-hidden bg-gray-200">
-                  <img
-                    src={candidate.image_url || 'https://via.placeholder.com/400'}
-                    alt={candidate.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+        {/* President Section */}
+        {presidents.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-12"
+          >
+            <h3 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+              President
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {presidents.map((candidate, index) => renderCandidateCard(candidate, index))}
+            </div>
+          </motion.div>
+        )}
 
-                <div className={`bg-gradient-to-r ${color} p-2 text-center`}>
-                  <p className="text-white text-sm">{candidate.role}</p>
-                </div>
+        {/* Vice President Section */}
+        {vicePresidents.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-12"
+          >
+            <h3 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
+              Vice President
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {vicePresidents.map((candidate, index) => renderCandidateCard(candidate, index))}
+            </div>
+          </motion.div>
+        )}
 
-                <div className="p-3 text-center">
-                  <h3 className="text-base mb-3 text-black">{candidate.name}</h3>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleVoteClick}
-                    className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors duration-300 flex items-center gap-2 mx-auto text-sm"
-                  >
-                    <Vote size={16} />
-                    Vote
-                  </motion.button>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+        {/* Treasurer Section */}
+        {treasurers.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-12"
+          >
+            <h3 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-red-600 to-green-600 bg-clip-text text-transparent">
+              Treasurer
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {treasurers.map((candidate, index) => renderCandidateCard(candidate, index))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Secretary Section */}
+        {secretaries.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-12"
+          >
+            <h3 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+              Secretary
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+              {secretaries.map((candidate, index) => renderCandidateCard(candidate, index))}
+            </div>
+          </motion.div>
+        )}
       </div>
       <SimpleVotingModal
         isOpen={isModalOpen}

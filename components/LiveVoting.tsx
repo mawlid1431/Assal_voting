@@ -127,9 +127,107 @@ export function LiveVoting() {
     );
   }
 
+  // Separate candidates by position
+  const presidents = candidates.filter(c => c.position === 'President');
+  const vicePresidents = candidates.filter(c => c.position === 'Vice President');
+  const treasurers = candidates.filter(c => c.position === 'Treasurer');
+  const secretaries = candidates.filter(c => c.position === 'Secretary');
+
+  const renderCandidateCard = (candidate: CandidateWithStats, idx: number) => {
+    const Icon = candidate.icon;
+
+    return (
+      <motion.div
+        key={candidate.id}
+        initial={{ opacity: 0, scale: 0.9 }}
+        whileInView={{ opacity: 1, scale: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.4, delay: idx * 0.05 }}
+        whileHover={{ scale: 1.05, y: -5 }}
+        className={`relative bg-white ${candidate.isLeading ? 'border-yellow-500 shadow-xl' : 'border-gray-300 shadow-lg'
+          } rounded-xl p-4 border-2 overflow-hidden group`}
+      >
+        {/* Leading badge */}
+        {candidate.isLeading && (
+          <div className="absolute top-2 right-2 z-10">
+            <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black px-2 py-0.5 text-xs rounded-full shadow-lg">
+              #1
+            </div>
+          </div>
+        )}
+
+        {/* Background gradient effect */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${candidate.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`}></div>
+
+        {/* Icon */}
+        <div className="text-center mb-3">
+          <div className="flex justify-center">
+            <motion.div
+              whileHover={{ rotate: 360 }}
+              transition={{ duration: 0.6 }}
+              className={`bg-gradient-to-r ${candidate.color} p-2 rounded-full shadow-lg`}
+            >
+              <Icon className="w-5 h-5 text-white" />
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Candidate image */}
+        <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden border-2 border-gray-200">
+          <img
+            src={candidate.image_url || 'https://via.placeholder.com/100'}
+            alt={candidate.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* Candidate name */}
+        <h4 className="text-base text-black text-center mb-3 leading-tight">
+          {candidate.name}
+        </h4>
+
+        {/* Vote percentage */}
+        <div className="text-center mb-3">
+          <motion.div
+            initial={{ scale: 0 }}
+            whileInView={{ scale: 1 }}
+            viewport={{ once: true }}
+            transition={{
+              type: "spring",
+              stiffness: 200,
+              damping: 10,
+              delay: idx * 0.05 + 0.2
+            }}
+            className={`text-4xl bg-gradient-to-r ${candidate.color} bg-clip-text text-transparent mb-1`}
+          >
+            {candidate.percentage}%
+          </motion.div>
+          <p className="text-gray-600 text-xs">{candidate.voteCount} {candidate.voteCount === 1 ? 'vote' : 'votes'}</p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="relative">
+          <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <motion.div
+              key={`${candidate.id}-${candidate.percentage}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${candidate.percentage}%` }}
+              transition={{
+                duration: 1.2,
+                ease: "easeOut"
+              }}
+              className={`h-full bg-gradient-to-r ${candidate.color} shadow-lg`}
+            />
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <section id="live-voting" className="py-20 px-4 bg-gradient-to-br from-green-50 via-white to-red-50">
       <div className="max-w-7xl mx-auto">
+        {/* Main Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -143,108 +241,86 @@ export function LiveVoting() {
             </div>
           </div>
           <h2 className="text-4xl md:text-5xl mb-4 bg-gradient-to-r from-red-600 via-black to-green-600 bg-clip-text text-transparent">
-            Live Voting Leaderboard
+            Live Voting Results
           </h2>
           <p className="text-lg text-gray-700">
             Real-time voting results • {totalVoters} {totalVoters === 1 ? 'voter' : 'voters'} participated
           </p>
         </motion.div>
 
-        {/* Grid Layout */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          {candidates.map((candidate, idx) => {
-            const Icon = candidate.icon;
+        {/* President Section */}
+        {presidents.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-16"
+          >
+            <h3 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+              Live Voting Leaderboard for President
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {presidents.map((candidate, idx) => renderCandidateCard(candidate, idx))}
+            </div>
+          </motion.div>
+        )}
 
-            return (
-              <motion.div
-                key={candidate.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: idx * 0.05 }}
-                whileHover={{ scale: 1.05, y: -5 }}
-                className={`relative bg-white ${candidate.isLeading ? 'border-yellow-500 shadow-xl' : 'border-gray-300 shadow-lg'
-                  } rounded-xl p-4 border-2 overflow-hidden group`}
-              >
-                {/* Leading badge */}
-                {candidate.isLeading && (
-                  <div className="absolute top-2 right-2 z-10">
-                    <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black px-2 py-0.5 text-xs rounded-full shadow-lg">
-                      #1
-                    </div>
-                  </div>
-                )}
+        {/* Vice President Section */}
+        {vicePresidents.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-16"
+          >
+            <h3 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
+              Live Voting Leaderboard for Vice President
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {vicePresidents.map((candidate, idx) => renderCandidateCard(candidate, idx))}
+            </div>
+          </motion.div>
+        )}
 
-                {/* Background gradient effect */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${candidate.color} opacity-0 group-hover:opacity-5 transition-opacity duration-500`}></div>
+        {/* Treasurer Section */}
+        {treasurers.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-16"
+          >
+            <h3 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-red-600 to-green-600 bg-clip-text text-transparent">
+              Live Voting Leaderboard for Treasurer
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {treasurers.map((candidate, idx) => renderCandidateCard(candidate, idx))}
+            </div>
+          </motion.div>
+        )}
 
-                {/* Position label */}
-                <div className="text-center mb-3">
-                  <p className="text-xs text-gray-600 mb-2">{candidate.position}</p>
-                  <div className="flex justify-center">
-                    <motion.div
-                      whileHover={{ rotate: 360 }}
-                      transition={{ duration: 0.6 }}
-                      className={`bg-gradient-to-r ${candidate.color} p-2 rounded-full shadow-lg`}
-                    >
-                      <Icon className="w-5 h-5 text-white" />
-                    </motion.div>
-                  </div>
-                </div>
+        {/* Secretary Section */}
+        {secretaries.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="mb-12"
+          >
+            <h3 className="text-3xl font-bold text-center mb-8 bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
+              Live Voting Leaderboard for Secretary
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {secretaries.map((candidate, idx) => renderCandidateCard(candidate, idx))}
+            </div>
+          </motion.div>
+        )}
 
-                {/* Candidate image */}
-                <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden border-2 border-gray-200">
-                  <img
-                    src={candidate.image_url || 'https://via.placeholder.com/100'}
-                    alt={candidate.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                {/* Candidate name */}
-                <h4 className="text-base text-black text-center mb-3 leading-tight">
-                  {candidate.name}
-                </h4>
-
-                {/* Vote percentage */}
-                <div className="text-center mb-3">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    whileInView={{ scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 200,
-                      damping: 10,
-                      delay: idx * 0.05 + 0.2
-                    }}
-                    className={`text-4xl bg-gradient-to-r ${candidate.color} bg-clip-text text-transparent mb-1`}
-                  >
-                    {candidate.percentage}%
-                  </motion.div>
-                  <p className="text-gray-600 text-xs">{candidate.voteCount} {candidate.voteCount === 1 ? 'vote' : 'votes'}</p>
-                </div>
-
-                {/* Progress bar */}
-                <div className="relative">
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <motion.div
-                      key={`${candidate.id}-${candidate.percentage}`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${candidate.percentage}%` }}
-                      transition={{
-                        duration: 1.2,
-                        ease: "easeOut"
-                      }}
-                      className={`h-full bg-gradient-to-r ${candidate.color} shadow-lg`}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-
+        {/* Live Update Indicator */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
